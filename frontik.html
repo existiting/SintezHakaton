@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ЭликсИИр</title>
+<style>
+  :root{
+    --bg:#f4f7f6; --panel:#ffffff; --side:#eaf1ef; --ink:#14232b; --muted:#5f707a;
+    --line:#d6e2df; --accent:#7c3aed; --accent2:#14b8a6; --accent-soft:#efe9fd; --user:#1e3a46; --user-ink:#fff;
+    --elixir: linear-gradient(135deg, #7c3aed 0%, #14b8a6 100%);
+    --ok:#15803d; --warn:#b45309; --err:#b91c1c; --run:#2563eb;
+    --radius:14px;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+       background:var(--bg); color:var(--ink); font-size:15px; line-height:1.5}
+  /* Фон: сетка бензольных колец */
+  main{background-color:var(--bg);
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='168' height='97' viewBox='0 0 168 97'%3E%3Cg fill='none' stroke='%2314b8a6' stroke-opacity='.13' stroke-width='1.2'%3E%3Cpath d='M28 0l28 16v32L28 64 0 48V16z'/%3E%3Cpath d='M28 12v-0M8 22v24M48 22v24' stroke-opacity='0'/%3E%3Ccircle cx='28' cy='32' r='12'/%3E%3Cpath d='M56 48l28 16M84 64l28-16 28 16v32M112 48V16l28-16 28 16v32l-28 16'/%3E%3Cpath d='M120 22l20-11.5M120 42l20 11.5M160 22v20' /%3E%3C/g%3E%3Cg fill='%237c3aed' fill-opacity='.14'%3E%3Ccircle cx='56' cy='48' r='2.5'/%3E%3Ccircle cx='84' cy='64' r='2.5'/%3E%3Ccircle cx='112' cy='48' r='2.5'/%3E%3C/g%3E%3C/svg%3E");}
+  .formula{font-family:var(--mono); font-size:11px; color:var(--muted); letter-spacing:.02em}
+  button,input,select,textarea{font:inherit;color:inherit}
+  .app{display:grid; grid-template-columns:280px 1fr; height:100vh}
+  /* Sidebar */
+  aside{background:var(--side); border-right:1px solid var(--line); display:flex; flex-direction:column; min-height:0}
+  .brand{padding:18px 18px 4px; font-weight:800; font-size:19px; display:flex; align-items:center; gap:10px; letter-spacing:-.01em}
+  .brand .name{background:var(--elixir); -webkit-background-clip:text; background-clip:text; color:transparent}
+  .logo{width:34px;height:34px;flex:none}
+  .tagline{padding:0 18px 10px 62px; margin-top:-4px}
+  .new{margin:6px 14px 10px; padding:10px 12px; border:0; background:var(--elixir); color:#fff;
+       border-radius:10px; cursor:pointer; text-align:left; font-weight:600; box-shadow:0 3px 12px rgba(124,58,237,.25)}
+  .new:hover{filter:brightness(1.07)}
+  .side-mol{display:block; margin:0 auto 4px; opacity:.5}
+  .chats{flex:1; overflow:auto; padding:0 8px}
+  .chat-item{display:flex; align-items:center; gap:6px; padding:8px 10px; border-radius:8px; cursor:pointer;
+             color:var(--muted); font-size:14px}
+  .chat-item span{flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+  .chat-item:hover{background:#e6e3da}
+  .chat-item.active{background:var(--panel); color:var(--ink); font-weight:600}
+  .chat-item .del{opacity:0; border:0; background:none; cursor:pointer; color:var(--muted); padding:0 4px}
+  .chat-item:hover .del{opacity:1}
+  .settings{border-top:1px solid var(--line); padding:12px 14px 16px; display:flex; flex-direction:column; gap:8px; font-size:13px}
+  .settings label{color:var(--muted); font-size:12px; display:block; margin-bottom:3px}
+  .settings input[type=text], .settings input[type=password], .settings select{
+    width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel)}
+  .row{display:flex; align-items:center; gap:8px}
+  .row.between{justify-content:space-between}
+  .toggle{display:flex; align-items:center; gap:8px; cursor:pointer; user-select:none}
+  .small-btn{padding:6px 10px; border:1px solid var(--line); border-radius:8px; background:var(--panel); cursor:pointer; font-size:12px}
+  .small-btn:hover{border-color:var(--accent)}
+  .conn{font-size:12px; color:var(--muted)}
+  .conn.ok{color:var(--ok)} .conn.err{color:var(--err)}
+  /* Main */
+  main{display:flex; flex-direction:column; min-width:0; min-height:0}
+  header{display:flex; align-items:center; justify-content:space-between; padding:12px 22px; border-bottom:1px solid var(--line); background:var(--bg)}
+  header .title{font-weight:600}
+  .menu-btn{display:none; border:0; background:none; font-size:20px; cursor:pointer}
+  .badge{font-size:12px; padding:3px 9px; border-radius:999px; background:var(--accent-soft); color:var(--accent); font-weight:600}
+  .badge.demo{background:#fff4e0; color:var(--warn)}
+  #messages{flex:1; overflow:auto; padding:24px 0}
+  .wrap{max-width:780px; margin:0 auto; padding:0 22px}
+  .empty{text-align:center; color:var(--muted); margin-top:14vh}
+  .empty h2{color:var(--ink); font-size:26px; margin:0 0 8px}
+  .hints{display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:18px}
+  .hint{padding:8px 12px; border:1px solid var(--line); border-radius:999px; background:var(--panel); cursor:pointer; font-size:14px}
+  .hint:hover{border-color:var(--accent)}
+  .empty .hero{display:block; margin:0 auto 10px}
+  .empty h2{background:var(--elixir); -webkit-background-clip:text; background-clip:text; color:transparent; font-size:34px; font-weight:800; letter-spacing:-.02em}
+  .msg{display:flex; margin:14px 0; gap:10px; align-items:flex-start}
+  .msg.user{justify-content:flex-end}
+  .avatar{width:32px; height:32px; flex:none; border-radius:10px; background:var(--elixir); display:grid; place-items:center; margin-top:2px}
+  /* Колба с пузырьками — индикатор ожидания */
+  .brew{display:inline-flex; align-items:center; gap:10px; color:var(--muted); font-size:14px}
+  .brew svg .b{animation:rise 1.4s infinite ease-in; transform-box:fill-box}
+  .brew svg .b2{animation-delay:.45s} .brew svg .b3{animation-delay:.9s}
+  @keyframes rise{0%{transform:translateY(0);opacity:0}20%{opacity:1}100%{transform:translateY(-14px);opacity:0}}
+  .hint::before{content:"⚗ "; color:var(--accent2)}
+  .bubble{max-width:85%; padding:11px 15px; border-radius:var(--radius); overflow-wrap:anywhere}
+  .msg.user .bubble{background:var(--user); color:var(--user-ink); border-bottom-right-radius:4px; white-space:pre-wrap}
+  .msg.assistant .bubble{min-width:0; background:var(--panel); border:1px solid var(--line); border-bottom-left-radius:4px; max-width:100%}
+  .bubble p{margin:0 0 8px} .bubble p:last-child{margin:0}
+  .bubble pre{background:#17171a; color:#f1f1f1; padding:12px; border-radius:8px; overflow:auto; font-family:var(--mono); font-size:13px}
+  .bubble code{font-family:var(--mono); font-size:13px; background:#f0eee8; padding:1px 5px; border-radius:4px}
+  .bubble pre code{background:none; padding:0}
+  .bubble ul,.bubble ol{margin:4px 0 8px; padding-left:22px}
+  .meta{display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-top:8px; font-size:12px; color:var(--muted)}
+  .status{display:inline-flex; align-items:center; gap:6px; font-weight:600}
+  .dot{width:7px;height:7px;border-radius:50%;background:currentColor}
+  .st-pending{color:var(--warn)} .st-running{color:var(--run)} .st-completed{color:var(--ok)} .st-failed{color:var(--err)}
+  .st-pending .dot,.st-running .dot{animation:pulse 1s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  .cursor::after{content:"▍"; animation:pulse 1s infinite; color:var(--accent)}
+  .err-box{color:var(--err); font-size:14px}
+  .copy{border:0; background:none; cursor:pointer; color:var(--muted); font-size:12px; padding:0}
+  .copy:hover{color:var(--ink)}
+  /* Composer */
+  .composer{padding:12px 0 18px; background:linear-gradient(transparent, var(--bg) 30%)}
+  .box{display:flex; align-items:flex-end; gap:8px; background:var(--panel); border:1px solid var(--line); border-radius:16px; padding:8px 8px 8px 14px; box-shadow:0 2px 10px rgba(0,0,0,.04)}
+  .box:focus-within{border-color:var(--accent)}
+  textarea{flex:1; border:0; outline:0; resize:none; background:transparent; max-height:200px; padding:6px 0}
+  .send{width:38px;height:38px;border-radius:10px;border:0;background:var(--elixir);color:#fff;cursor:pointer;font-size:17px;flex:none}
+  .send:disabled{opacity:.4; cursor:default}
+  .send.stop{background:var(--ink)}
+  .foot{text-align:center; font-size:12px; color:var(--muted); margin-top:6px}
+  @media (max-width: 800px){
+    .app{grid-template-columns:1fr}
+    aside{position:fixed; inset:0 30% 0 0; z-index:10; transform:translateX(-100%); transition:transform .2s; box-shadow:4px 0 20px rgba(0,0,0,.1)}
+    aside.open{transform:none}
+    .menu-btn{display:block}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside id="side">
+    <div class="brand">
+      <svg class="logo" viewBox="0 0 40 40" aria-hidden="true">
+        <defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+        <path d="M15 4h10M17 4v11L7 32a4 4 0 0 0 3.5 6h19a4 4 0 0 0 3.5-6L23 15V4" fill="none" stroke="#14232b" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M11.5 25h17L33 32a4 4 0 0 1-3.5 6h-19A4 4 0 0 1 7 32z" fill="url(#lg)"/>
+        <circle cx="17" cy="31" r="1.8" fill="#fff" opacity=".85"/><circle cx="23" cy="28.5" r="1.2" fill="#fff" opacity=".7"/><circle cx="21" cy="34" r="1" fill="#fff" opacity=".6"/>
+      </svg>
+      <span class="name">ЭликсИИр</span>
+    </div>
+    <div class="tagline formula">C₆H₆ · H₂O · ИИ</div>
+    <button class="new" id="newChat">＋ Новая реакция</button>
+    <div class="chats" id="chatList"></div>
+    <svg class="side-mol" width="150" height="70" viewBox="0 0 150 70" aria-hidden="true">
+      <g fill="none" stroke="#14b8a6" stroke-width="1.6" stroke-linejoin="round">
+        <path d="M40 10l17 10v20L40 50 23 40V20z"/><circle cx="40" cy="30" r="10"/>
+        <path d="M57 20l20-10 20 10M97 20v14M77 10V0"/>
+      </g>
+      <g fill="#7c3aed"><circle cx="77" cy="10" r="3"/><circle cx="97" cy="34" r="3"/></g>
+      <text x="101" y="24" font-family="ui-monospace,monospace" font-size="10" fill="#5f707a">COOH</text>
+    </svg>
+    <div class="settings">
+      <div>
+        <label for="baseUrl">Адрес API</label>
+        <input type="text" id="baseUrl" placeholder="http://localhost:8000">
+      </div>
+      <div>
+        <label for="apiKey">API-ключ (если нужен)</label>
+        <input type="password" id="apiKey" placeholder="необязательно">
+      </div>
+      <div>
+        <label for="model">Модель</label>
+        <div class="row">
+          <select id="model"><option value="v1">v1</option></select>
+          <button class="small-btn" id="loadModels" title="GET /v1/models">↻</button>
+        </div>
+      </div>
+      <div class="row between">
+        <label class="toggle"><input type="checkbox" id="stream" checked> Стриминг (WS)</label>
+        <label class="toggle"><input type="checkbox" id="demo"> Демо</label>
+      </div>
+      <div class="conn" id="conn"></div>
+    </div>
+  </aside>
+
+  <main>
+    <header>
+      <div class="row">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <div class="title" id="chatTitle">Новая реакция</div>
+      </div>
+      <span class="badge" id="modeBadge">v1</span>
+    </header>
+    <div id="messages"><div class="wrap" id="msgWrap"></div></div>
+    <div class="composer">
+      <div class="wrap">
+        <div class="box">
+          <textarea id="input" rows="1" placeholder="Спросите ЭликсИИр о молекуле, реакции или чём угодно…"></textarea>
+          <button class="send" id="sendBtn" title="Отправить">↑</button>
+        </div>
+        <div class="foot">Enter — отправить · Shift+Enter — новая строка</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* ================= Хранилище ================= */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+
+const settings = Object.assign({ baseUrl:"", apiKey:"", model:"v1", stream:true, demo:true }, store.get("ai_settings", {}));
+let chats = store.get("ai_chats", []);
+let currentId = store.get("ai_current", null);
+let busy = false;
+let cancelFn = null;
+
+const $ = id => document.getElementById(id);
+const saveSettings = () => store.set("ai_settings", settings);
+const saveChats = () => { store.set("ai_chats", chats); store.set("ai_current", currentId); };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ================= API-клиент ================= */
+// Нормализация статусов: в спецификации встречается "pedding"
+const normStatus = s => (s === "pedding" ? "pending" : (s || "pending"));
+
+function apiUrl(path){
+  const base = (settings.baseUrl || location.origin).replace(/\/+$/, "");
+  return base + path;
+}
+function wsUrl(path){
+  let u = apiUrl(path).replace(/^http/, "ws");
+  if (settings.apiKey) u += (u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(settings.apiKey);
+  return u;
+}
+function headers(){
+  const h = { "Content-Type":"application/json" };
+  if (settings.apiKey) h["Authorization"] = "Bearer " + settings.apiKey;
+  return h;
+}
+async function http(method, path, body){
+  const res = await fetch(apiUrl(path), { method, headers: headers(), body: body ? JSON.stringify(body) : undefined });
+  let data = null;
+  try { data = await res.json(); } catch(e){}
+  if (!res.ok){
+    const msg = data?.error?.message || data?.detail || data?.message || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+// Достаёт текст ответа из обоих форматов, описанных в документации
+function extractContent(r){
+  if (!r) return "";
+  if (r.result?.content != null) return r.result.content;
+  if (r.choices?.[0]?.message?.content != null) return r.choices[0].message.content;
+  if (typeof r.result === "string") return r.result;
+  return "";
+}
+
+const realApi = {
+  async models(){
+    const d = await http("GET", "/v1/models");
+    const list = Array.isArray(d) ? d : (d?.data || d?.models || []);
+    return list.map(m => typeof m === "string" ? m : (m.id || m.name)).filter(Boolean);
+  },
+  // POST /v1/chat/completions → 202 { request_id, status, stream, created_at }
+  create(model, messages, stream){
+    return http("POST", "/v1/chat/completions", { model, messages, stream });
+  },
+  status(id){ return http("GET", `/v1/chat/${id}/status`); },
+  result(id){ return http("GET", `/v1/chat/${id}/result`); },
+  // WS /v1/chat/{id}/ws — события start / token / completed / error
+  stream(id, h){
+    return new Promise((resolve, reject) => {
+      let ws, done = false, opened = false;
+      const buf = new Map(); let next = 1; // упорядочивание по sequence
+      try { ws = new WebSocket(wsUrl(`/v1/chat/${id}/ws`)); } catch(e){ return reject(e); }
+      const finish = (fn, v) => { if (done) return; done = true; try{ ws.close(); }catch(e){} fn(v); };
+      h.setCancel(() => finish(reject, new Error("__cancel__")));
+      ws.onopen = () => { opened = true; };
+      ws.onmessage = ev => {
+        let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+        if (m.event === "start") h.onStart?.();
+        else if (m.event === "token"){
+          if (typeof m.sequence !== "number"){ h.onToken(m.data || ""); return; }
+          buf.set(m.sequence, m.data || "");
+          if (next > m.sequence) return;
+          while (buf.has(next)){ h.onToken(buf.get(next)); buf.delete(next); next++; }
+        }
+        else if (m.event === "completed"){
+          // выгружаем всё, что осталось в буфере
+          [...buf.keys()].sort((a,b)=>a-b).forEach(k => h.onToken(buf.get(k)));
+          finish(resolve, { usage: m.usage });
+        }
+        else if (m.event === "error") finish(reject, new Error(`${m.error?.code || "ERROR"}: ${m.error?.message || "Ошибка"}`));
+      };
+      ws.onerror = () => finish(reject, new Error(opened ? "Ошибка WebSocket-соединения" : "__ws_unavailable__"));
+      ws.onclose = () => finish(reject, new Error(opened ? "Соединение закрыто до завершения" : "__ws_unavailable__"));
+    });
+  }
+};
+
+/* ================= Демо-бэкенд (без сервера) ================= */
+const demoTasks = new Map();
+const demoAnswers = [
+  "Привет! Это **демо-режим**: ответы генерируются прямо в браузере, без обращения к API.\n\nЧтобы подключить настоящий бэкенд, выключите «Демо» и укажите адрес API в настройках слева.",
+  "Вот как фронтенд работает с вашим API:\n\n1. `POST /v1/chat/completions` — создаёт задачу и получает `request_id`\n2. Если стриминг включён — открывает `WS /v1/chat/{id}/ws` и выводит токены по мере прихода\n3. Если выключен — опрашивает `/status` и забирает `/result`\n\n```json\n{ \"event\": \"token\", \"sequence\": 1, \"data\": \"Hello\" }\n```",
+  "Анализ молекулы (пример):\n\n- **Формула:** C₉H₈O₄ (аспирин)\n- **Молекулярная масса:** 180.16 г/моль\n- **logP:** ≈ 1.19\n- Соответствует правилу Липински: 1 донор и 4 акцептора H-связей.\n\nЭто демонстрационный текст — реальный ответ придёт от вашей модели."
+];
+let demoIdx = 0;
+const demoApi = {
+  async models(){ await sleep(300); return ["v1", "v1-mini", "v1-chem"]; },
+  async create(model, messages, stream){
+    await sleep(250);
+    const id = crypto.randomUUID ? crypto.randomUUID() : uid();
+    const last = messages[messages.length-1]?.content || "";
+    const text = /ошибк|error/i.test(last) ? null : demoAnswers[demoIdx++ % demoAnswers.length];
+    demoTasks.set(id, { text, start: Date.now(), prompt: last.length });
+    return { request_id:id, status:"pedding", stream, created_at:new Date().toISOString() };
+  },
+  async status(id){
+    await sleep(150);
+    const t = demoTasks.get(id); const age = Date.now() - t.start;
+    if (age < 900) return { request_id:id, status:"pedding" };
+    if (age < 2200) return { request_id:id, status:"running" };
+    return { request_id:id, status: t.text === null ? "failed" : "completed" };
+  },
+  async result(id){
+    await sleep(150);
+    const t = demoTasks.get(id);
+    if (t.text === null) return { request_id:id, status:"failed", error:{ code:"MODEL_ERROR", message:"Inference failed" } };
+    return { request_id:id, status:"completed", result:{ role:"assistant", content:t.text } };
+  },
+  stream(id, h){
+    return new Promise(async (resolve, reject) => {
+      let cancelled = false;
+      h.setCancel(() => { cancelled = true; reject(new Error("__cancel__")); });
+      const t = demoTasks.get(id);
+      await sleep(500); if (cancelled) return;
+      h.onStart?.();
+      if (t.text === null){ await sleep(400); return reject(new Error("MODEL_ERROR: Inference failed")); }
+      const parts = t.text.match(/\S+\s*|\s+/g) || [];
+      for (const p of parts){ if (cancelled) return; await sleep(35); h.onToken(p); }
+      resolve({ usage:{ prompt_tokens: Math.ceil(t.prompt/4)+4, completion_tokens: parts.length } });
+    });
+  }
+};
+const api = () => settings.demo ? demoApi : realApi;
+
+/* ================= Markdown-рендер (минимальный, безопасный) ================= */
+function esc(s){ return s.replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c])); }
+function inline(s){
+  return s.replace(/`([^`]+)`/g, "<code>$1</code>")
+          .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+          .replace(/(^|[^*])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+}
+function md(src){
+  const out = []; const blocks = src.split(/```/);
+  blocks.forEach((b, i) => {
+    if (i % 2){ out.push("<pre><code>" + esc(b.replace(/^\w*\n/, "")) + "</code></pre>"); return; }
+    const lines = esc(b).split("\n"); let list = null, para = [];
+    const flushP = () => { if (para.length){ out.push("<p>" + inline(para.join("<br>")) + "</p>"); para = []; } };
+    const flushL = () => { if (list){ out.push(`<${list.t}>` + list.items.map(x=>"<li>"+inline(x)+"</li>").join("") + `</${list.t}>`); list = null; } };
+    for (const l of lines){
+      let m;
+      if ((m = l.match(/^\s*[-*]\s+(.*)/))){ flushP(); if (list?.t !== "ul"){ flushL(); list = {t:"ul", items:[]}; } list.items.push(m[1]); }
+      else if ((m = l.match(/^\s*\d+[.)]\s+(.*)/))){ flushP(); if (list?.t !== "ol"){ flushL(); list = {t:"ol", items:[]}; } list.items.push(m[1]); }
+      else if ((m = l.match(/^#{1,4}\s+(.*)/))){ flushP(); flushL(); out.push("<p><strong>" + inline(m[1]) + "</strong></p>"); }
+      else if (!l.trim()){ flushP(); flushL(); }
+      else { flushL(); para.push(l); }
+    }
+    flushP(); flushL();
+  });
+  return out.join("");
+}
+
+/* ================= UI ================= */
+const STATUS_LABEL = { pending:"В очереди", running:"Синтез", completed:"Готово", failed:"Ошибка" };
+const FLASK_MINI = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6M10 3v6L4.5 19a2 2 0 0 0 1.8 3h11.4a2 2 0 0 0 1.8-3L14 9V3"/><path d="M7 15h10"/></svg>`;
+const BREW_SVG = `<svg width="26" height="30" viewBox="0 0 26 30"><path d="M9 2h8M10.5 2v8L3 24a3 3 0 0 0 2.6 4.5h14.8A3 3 0 0 0 23 24l-7.5-14V2" fill="none" stroke="#14232b" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M6.2 18h13.6L23 24a3 3 0 0 1-2.6 4.5H5.6A3 3 0 0 1 3 24z" fill="url(#lg)"/><circle class="b" cx="11" cy="22" r="1.6" fill="#7c3aed"/><circle class="b b2" cx="15" cy="23" r="1.2" fill="#14b8a6"/><circle class="b b3" cx="13" cy="20" r="1" fill="#7c3aed"/></svg>`;
+const HERO_SVG = `<svg class="hero" width="200" height="120" viewBox="0 0 200 120" aria-hidden="true">
+  <defs><linearGradient id="hg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c3aed"/><stop offset="1" stop-color="#14b8a6"/></linearGradient></defs>
+  <g fill="none" stroke="url(#hg)" stroke-width="2.4" stroke-linejoin="round">
+    <path d="M70 30l26 15v30L70 90 44 75V45z"/><circle cx="70" cy="60" r="15"/>
+    <path d="M96 45l26-15 26 15v30M122 30V8M148 75l22 13M44 75l-22 13"/>
+  </g>
+  <g fill="#7c3aed"><circle cx="122" cy="8" r="5"/><circle cx="148" cy="45" r="4"/></g>
+  <g fill="#14b8a6"><circle cx="170" cy="88" r="5"/><circle cx="22" cy="88" r="4"/></g>
+</svg>`;
+
+function current(){ return chats.find(c => c.id === currentId); }
+
+function renderList(){
+  const el = $("chatList"); el.innerHTML = "";
+  chats.forEach(c => {
+    const d = document.createElement("div");
+    d.className = "chat-item" + (c.id === currentId ? " active" : "");
+    d.innerHTML = `<span></span><button class="del" title="Удалить">✕</button>`;
+    d.querySelector("span").textContent = c.title || "Новая реакция";
+    d.onclick = () => { if (busy) return; currentId = c.id; saveChats(); renderAll(); $("side").classList.remove("open"); };
+    d.querySelector(".del").onclick = e => {
+      e.stopPropagation(); if (busy && c.id === currentId) return;
+      chats = chats.filter(x => x.id !== c.id);
+      if (currentId === c.id) currentId = chats[0]?.id || null;
+      saveChats(); renderAll();
+    };
+    el.appendChild(d);
+  });
+}
+
+function msgNode(m){
+  const row = document.createElement("div");
+  row.className = "msg " + m.role;
+  const b = document.createElement("div"); b.className = "bubble";
+  if (m.role === "user"){ b.textContent = m.content; row.appendChild(b); return row; }
+  const av = document.createElement("div"); av.className = "avatar"; av.innerHTML = FLASK_MINI; row.appendChild(av);
+  if (m.error) b.innerHTML = `<div class="err-box">⚠ ${esc(m.error)}</div>`;
+  else if (!m.content && m.status !== "completed")
+    b.innerHTML = `<span class="brew">${BREW_SVG}${m.status === "running" ? "Реакция идёт…" : "Смешиваю реагенты…"}</span>`;
+  else { b.innerHTML = md(m.content || ""); if (m.status === "running") b.lastElementChild?.classList.add("cursor"); }
+  const meta = document.createElement("div"); meta.className = "meta";
+  const st = m.status || "completed";
+  meta.innerHTML = `<span class="status st-${st}"><span class="dot"></span>${STATUS_LABEL[st] || st}</span>`;
+  if (m.usage) meta.innerHTML += `<span>токены: ${m.usage.prompt_tokens ?? "?"} → ${m.usage.completion_tokens ?? "?"}</span>`;
+  if (m.requestId) meta.innerHTML += `<span title="request_id">id: ${esc(m.requestId.slice(0,8))}…</span>`;
+  if (st === "completed" && m.content){
+    const cp = document.createElement("button"); cp.className = "copy"; cp.textContent = "Копировать";
+    cp.onclick = () => { navigator.clipboard?.writeText(m.content); cp.textContent = "Скопировано"; setTimeout(()=>cp.textContent="Копировать",1200); };
+    meta.appendChild(cp);
+  }
+  b.appendChild(meta); row.appendChild(b); return row;
+}
+
+function renderMessages(){
+  const w = $("msgWrap"); w.innerHTML = "";
+  const c = current();
+  $("chatTitle").textContent = c?.title || "Новая реакция";
+  if (!c || !c.messages.length){
+    w.innerHTML = `<div class="empty">${HERO_SVG}<h2>ЭликсИИр</h2><div>Задайте вопрос, а ИИ смешает ответ</div><div class="hints"></div></div>`;
+    const hints = ["Проанализируй молекулу аспирина", "Предложи путь синтеза парацетамола", "Объясни правило Липински"];
+    const hb = w.querySelector(".hints");
+    hints.forEach(t => { const h = document.createElement("button"); h.className = "hint"; h.textContent = t; h.onclick = () => send(t); hb.appendChild(h); });
+    return;
+  }
+  c.messages.forEach(m => w.appendChild(msgNode(m)));
+  scrollDown();
+}
+function updateLast(){
+  const w = $("msgWrap"); const c = current(); const last = c.messages[c.messages.length-1];
+  const old = w.lastElementChild; const n = msgNode(last);
+  old ? w.replaceChild(n, old) : w.appendChild(n);
+  scrollDown();
+}
+function scrollDown(){
+  const el = $("messages");
+  if (el.scrollHeight - el.scrollTop - el.clientHeight < 160) el.scrollTop = el.scrollHeight;
+}
+function renderHeader(){
+  const b = $("modeBadge");
+  b.textContent = settings.demo ? "Демо · " + settings.model : settings.model;
+  b.className = "badge" + (settings.demo ? " demo" : "");
+}
+function renderAll(){ renderList(); renderMessages(); renderHeader(); }
+
+function setBusy(v){
+  busy = v;
+  const btn = $("sendBtn");
+  btn.classList.toggle("stop", v);
+  btn.textContent = v ? "■" : "↑";
+  btn.title = v ? "Остановить" : "Отправить";
+  updateSendState();
+}
+function updateSendState(){ $("sendBtn").disabled = !busy && !$("input").value.trim(); }
+
+/* ================= Отправка ================= */
+async function send(text){
+  text = (text ?? $("input").value).trim();
+  if (!text || busy) return;
+  $("input").value = ""; autoGrow();
+
+  let c = current();
+  if (!c){ c = { id: uid(), title: "", messages: [] }; chats.unshift(c); currentId = c.id; }
+  if (!c.title) c.title = text.slice(0, 40);
+  c.messages.push({ role:"user", content:text });
+  const payload = c.messages.filter(m => !m.error && m.content).map(m => ({ role:m.role, content:m.content }));
+  const a = { role:"assistant", content:"", status:"pending" };
+  c.messages.push(a);
+  saveChats(); renderList(); renderMessages(); $("messages").scrollTop = 1e9;
+  setBusy(true);
+
+  let cancelled = false;
+  let innerCancel = null;
+  cancelFn = () => { cancelled = true; innerCancel?.(); };
+
+  try {
+    const A = api();
+    const task = await A.create(settings.model, payload, settings.stream);
+
+    // Если сервер сразу вернул готовый ответ в формате chat.completion
+    if (task?.choices){
+      a.content = extractContent(task); a.usage = task.usage; a.status = "completed"; a.requestId = task.id;
+    } else {
+      a.requestId = task.request_id;
+      a.status = normStatus(task.status); updateLast();
+      if (!a.requestId) throw new Error("Сервер не вернул request_id");
+
+      let streamed = false;
+      if (settings.stream){
+        try {
+          const r = await A.stream(a.requestId, {
+            setCancel: f => innerCancel = f,
+            onStart: () => { a.status = "running"; updateLast(); },
+            onToken: t => { a.status = "running"; a.content += t; updateLast(); }
+          });
+          a.usage = r.usage; a.status = "completed"; streamed = true;
+        } catch(e){
+          if (e.message !== "__ws_unavailable__") throw e;
+          // WebSocket недоступен — переключаемся на опрос статуса
+        }
+      }
+      if (!streamed){
+        while (true){
+          if (cancelled) throw new Error("__cancel__");
+          const s = await A.status(a.requestId);
+          a.status = normStatus(s.status); updateLast();
+          if (a.status === "completed" || a.status === "failed") break;
+          await sleep(1000);
+        }
+        const r = await A.result(a.requestId);
+        if (normStatus(r.status) === "failed" || a.status === "failed")
+          throw new Error(r.error ? `${r.error.code || "ERROR"}: ${r.error.message || ""}` : "Задача завершилась с ошибкой");
+        a.content = extractContent(r); a.usage = r.usage || a.usage; a.status = "completed";
+      }
+    }
+  } catch(e){
+    if (e.message === "__cancel__"){ a.status = a.content ? "completed" : "failed"; if (!a.content) a.error = "Остановлено"; }
+    else {
+      a.status = "failed";
+      a.error = e.message === "Failed to fetch"
+        ? "Не удалось подключиться к API. Проверьте адрес и настройки CORS на сервере."
+        : e.message;
+    }
+  } finally {
+    cancelFn = null; setBusy(false); saveChats(); updateLast(); renderList();
+  }
+}
+
+/* ================= Модели ================= */
+async function loadModels(){
+  const conn = $("conn"); conn.className = "conn"; conn.textContent = "Загрузка моделей…";
+  try {
+    const list = await api().models();
+    if (!list.length) throw new Error("Пустой список моделей");
+    const sel = $("model"); sel.innerHTML = "";
+    list.forEach(m => { const o = document.createElement("option"); o.value = o.textContent = m; sel.appendChild(o); });
+    if (!list.includes(settings.model)) settings.model = list[0];
+    sel.value = settings.model; saveSettings(); renderHeader();
+    conn.className = "conn ok"; conn.textContent = `● Подключено · моделей: ${list.length}`;
+  } catch(e){
+    conn.className = "conn err";
+    conn.textContent = "● " + (e.message === "Failed to fetch" ? "API недоступен" : e.message);
+  }
+}
+
+/* ================= События ================= */
+function autoGrow(){ const t = $("input"); t.style.height = "auto"; t.style.height = Math.min(t.scrollHeight, 200) + "px"; updateSendState(); }
+
+$("input").addEventListener("input", autoGrow);
+$("input").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing){ e.preventDefault(); send(); } });
+$("sendBtn").onclick = () => busy ? cancelFn?.() : send();
+$("newChat").onclick = () => { if (busy) return; currentId = null; saveChats(); renderAll(); $("input").focus(); $("side").classList.remove("open"); };
+$("menuBtn").onclick = () => $("side").classList.toggle("open");
+$("loadModels").onclick = loadModels;
+
+$("baseUrl").value = settings.baseUrl;
+$("apiKey").value = settings.apiKey;
+$("stream").checked = settings.stream;
+$("demo").checked = settings.demo;
+$("model").innerHTML = `<option>${esc(settings.model)}</option>`;
+
+$("baseUrl").onchange = e => { settings.baseUrl = e.target.value.trim(); saveSettings(); if (!settings.demo) loadModels(); };
+$("apiKey").onchange = e => { settings.apiKey = e.target.value.trim(); saveSettings(); };
+$("model").onchange = e => { settings.model = e.target.value; saveSettings(); renderHeader(); };
+$("stream").onchange = e => { settings.stream = e.target.checked; saveSettings(); };
+$("demo").onchange = e => { settings.demo = e.target.checked; saveSettings(); renderHeader(); loadModels(); };
+
+if (currentId && !current()) currentId = null;
+renderAll(); updateSendState(); loadModels();
+</script>
+</body>
+</html>
