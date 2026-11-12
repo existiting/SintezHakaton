@@ -3,3 +3,4 @@ rabbitmq_data/
 postgres_data/
 backend/python/.venv/
 backend/docs_get.sh
+.env

@@ -43,6 +43,8 @@
   .chat-item:hover .del{opacity:1}
   .settings{border-top:1px solid var(--line); padding:12px 14px 16px; display:flex; flex-direction:column; gap:8px; font-size:13px}
   .settings label{color:var(--muted); font-size:12px; display:block; margin-bottom:3px}
+  .origin-note{color:var(--muted); font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .origin-note strong{color:var(--ink); font-family:var(--mono); font-size:11px}
   .settings input[type=text], .settings input[type=password], .settings select{
     width:100%; padding:7px 9px; border:1px solid var(--line); border-radius:8px; background:var(--panel)}
   .row{display:flex; align-items:center; gap:8px}
@@ -138,7 +140,7 @@
     <div class="settings">
       <div>
         <label for="baseUrl">Адрес API</label>
-        <input type="text" id="baseUrl" placeholder="http://localhost:8000">
+        <input type="text" id="baseUrl" placeholder="Адрес сайта (по умолчанию)">
       </div>
       <div>
         <label for="apiKey">API-ключ (если нужен)</label>
@@ -187,7 +189,7 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 
-const settings = Object.assign({ baseUrl:"", apiKey:"", model:"v1", stream:true, demo:true }, store.get("ai_settings", {}));
+const settings = Object.assign({ baseUrl:"", apiKey:"", model:"v1", stream:true, demo:false }, store.get("ai_settings", {}));
 let chats = store.get("ai_chats", []);
 let currentId = store.get("ai_current", null);
 let busy = false;
@@ -208,13 +210,12 @@ function apiUrl(path){
   return base + path;
 }
 function wsUrl(path){
-  let u = apiUrl(path).replace(/^http/, "ws");
-  if (settings.apiKey) u += (u.includes("?") ? "&" : "?") + "token=" + encodeURIComponent(settings.apiKey);
-  return u;
+  return apiUrl(path).replace(/^http/, "ws");
 }
 function headers(){
   const h = { "Content-Type":"application/json" };
-  if (settings.apiKey) h["Authorization"] = "Bearer " + settings.apiKey;
+  // Контракт API использует значение токена напрямую: Authorization: test
+  if (settings.apiKey) h["Authorization"] = settings.apiKey;
   return h;
 }
 async function http(method, path, body){
@@ -232,20 +233,22 @@ async function http(method, path, body){
 function extractContent(r){
   if (!r) return "";
   if (r.result?.content != null) return r.result.content;
+  if (Array.isArray(r.result)) return r.result.map(x => x?.content || "").join("");
   if (r.choices?.[0]?.message?.content != null) return r.choices[0].message.content;
   if (typeof r.result === "string") return r.result;
   return "";
 }
 
 const realApi = {
+  health(){ return http("GET", "/health"); },
   async models(){
     const d = await http("GET", "/v1/models");
     const list = Array.isArray(d) ? d : (d?.data || d?.models || []);
     return list.map(m => typeof m === "string" ? m : (m.id || m.name)).filter(Boolean);
   },
-  // POST /v1/chat/completions → 202 { request_id, status, stream, created_at }
+  // POST /v1/chat/completions/ → { request_id, status, stream, created_at }
   create(model, messages, stream){
-    return http("POST", "/v1/chat/completions", { model, messages, stream });
+    return http("POST", "/v1/chat/completions/", { model, messages, stream });
   },
   status(id){ return http("GET", `/v1/chat/${id}/status`); },
   result(id){ return http("GET", `/v1/chat/${id}/result`); },
@@ -289,6 +292,7 @@ const demoAnswers = [
 ];
 let demoIdx = 0;
 const demoApi = {
+  async health(){ await sleep(120); return { health:"ok", status_code:200 }; },
   async models(){ await sleep(300); return ["v1", "v1-mini", "v1-chem"]; },
   async create(model, messages, stream){
     await sleep(250);
@@ -462,7 +466,8 @@ async function send(text){
   if (!c){ c = { id: uid(), title: "", messages: [] }; chats.unshift(c); currentId = c.id; }
   if (!c.title) c.title = text.slice(0, 40);
   c.messages.push({ role:"user", content:text });
-  const payload = c.messages.filter(m => !m.error && m.content).map(m => ({ role:m.role, content:m.content }));
+  // В swagger request.Message содержит только обязательное поле content.
+  const payload = c.messages.filter(m => !m.error && m.content).map(m => ({ content:m.content }));
   const a = { role:"assistant", content:"", status:"pending" };
   c.messages.push(a);
   saveChats(); renderList(); renderMessages(); $("messages").scrollTop = 1e9;
@@ -485,7 +490,9 @@ async function send(text){
       if (!a.requestId) throw new Error("Сервер не вернул request_id");
 
       let streamed = false;
-      if (settings.stream){
+      // В браузере нельзя передать Authorization header в WebSocket handshake.
+      // При токене используем HTTP polling, где заголовок поддерживается.
+      if (settings.stream && !settings.apiKey){
         try {
           const r = await A.stream(a.requestId, {
             setCancel: f => innerCancel = f,
@@ -529,7 +536,12 @@ async function send(text){
 async function loadModels(){
   const conn = $("conn"); conn.className = "conn"; conn.textContent = "Загрузка моделей…";
   try {
-    const list = await api().models();
+    const A = api();
+    conn.textContent = "Проверка API…";
+    const health = await A.health();
+    if (!health || health.status_code >= 400 || health.health === "unhealthy")
+      throw new Error(health?.detail || "API не прошёл health-check");
+    const list = await A.models();
     if (!list.length) throw new Error("Пустой список моделей");
     const sel = $("model"); sel.innerHTML = "";
     list.forEach(m => { const o = document.createElement("option"); o.value = o.textContent = m; sel.appendChild(o); });
@@ -558,8 +570,8 @@ $("stream").checked = settings.stream;
 $("demo").checked = settings.demo;
 $("model").innerHTML = `<option>${esc(settings.model)}</option>`;
 
-$("baseUrl").onchange = e => { settings.baseUrl = e.target.value.trim(); saveSettings(); if (!settings.demo) loadModels(); };
 $("apiKey").onchange = e => { settings.apiKey = e.target.value.trim(); saveSettings(); };
+$("baseUrl").onchange = e => { settings.baseUrl = e.target.value.trim(); saveSettings(); if (!settings.demo) loadModels(); };
 $("model").onchange = e => { settings.model = e.target.value; saveSettings(); renderHeader(); };
 $("stream").onchange = e => { settings.stream = e.target.checked; saveSettings(); };
 $("demo").onchange = e => { settings.demo = e.target.checked; saveSettings(); renderHeader(); loadModels(); };

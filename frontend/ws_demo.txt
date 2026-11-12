@@ -1,0 +1,67 @@
+curl -X GET \     □ SintezHakaton/backend △⎪◌◦✕⎥ go ∩ v1.27.2-X:nodwarf5  40% ↓ 01:00
+             http://localhost:8080/v1/chat/e5e4da2f0fcb1b8c48689701/ws \
+             -H "Authorization: test"
+{"event":"start","request_id":"e5e4da2f0fcb1b8c48689701"}
+{"event":"token","sequence":1,"data":"Привет!"}
+{"event":"token","sequence":2,"data":" "}
+{"event":"token","sequence":3,"data":"Я"}
+{"event":"token","sequence":4,"data":" "}
+{"event":"token","sequence":5,"data":"языковая"}
+{"event":"token","sequence":6,"data":" "}
+{"event":"token","sequence":7,"data":"модель,"}
+{"event":"token","sequence":8,"data":" "}
+{"event":"token","sequence":9,"data":"работающая"}
+{"event":"token","sequence":10,"data":" "}
+{"event":"token","sequence":11,"data":"в"}
+{"event":"token","sequence":12,"data":" "}
+{"event":"token","sequence":13,"data":"потоковом"}
+{"event":"token","sequence":14,"data":" "}
+{"event":"token","sequence":15,"data":"режиме."}
+{"event":"token","sequence":16,"data":" "}
+{"event":"token","sequence":17,"data":"Каждое"}
+{"event":"token","sequence":18,"data":" "}
+{"event":"token","sequence":19,"data":"слово"}
+{"event":"token","sequence":20,"data":" "}
+{"event":"token","sequence":21,"data":"появляется"}
+{"event":"token","sequence":22,"data":" "}
+{"event":"token","sequence":23,"data":"постепенно,"}
+{"event":"token","sequence":24,"data":" "}
+{"event":"token","sequence":25,"data":"имитируя"}
+{"event":"token","sequence":26,"data":" "}
+{"event":"token","sequence":27,"data":"реальную"}
+{"event":"token","sequence":28,"data":" "}
+{"event":"token","sequence":29,"data":"генерацию"}
+{"event":"token","sequence":30,"data":" "}
+{"event":"token","sequence":31,"data":"токенов."}
+{"event":"token","sequence":32,"data":" "}
+{"event":"token","sequence":33,"data":"Такой"}
+{"event":"token","sequence":34,"data":" "}
+{"event":"token","sequence":35,"data":"подход"}
+{"event":"token","sequence":36,"data":" "}
+{"event":"token","sequence":37,"data":"позволяет"}
+{"event":"token","sequence":38,"data":" "}
+{"event":"token","sequence":39,"data":"пользователю"}
+{"event":"token","sequence":40,"data":" "}
+{"event":"token","sequence":41,"data":"видеть"}
+{"event":"token","sequence":42,"data":" "}
+{"event":"token","sequence":43,"data":"ответ"}
+{"event":"token","sequence":44,"data":" "}
+{"event":"token","sequence":45,"data":"в"}
+{"event":"token","sequence":46,"data":" "}
+{"event":"token","sequence":47,"data":"режиме"}
+{"event":"token","sequence":48,"data":" "}
+{"event":"token","sequence":49,"data":"реального"}
+{"event":"token","sequence":50,"data":" "}
+{"event":"token","sequence":51,"data":"времени,"}
+{"event":"token","sequence":52,"data":" "}
+{"event":"token","sequence":53,"data":"не"}
+{"event":"token","sequence":54,"data":" "}
+{"event":"token","sequence":55,"data":"дожидаясь"}
+{"event":"token","sequence":56,"data":" "}
+{"event":"token","sequence":57,"data":"полной"}
+{"event":"token","sequence":58,"data":" "}
+{"event":"token","sequence":59,"data":"обработки"}
+{"event":"token","sequence":60,"data":" "}
+{"event":"token","sequence":61,"data":"запроса."}
+{"event":"token","sequence":62}
+{"event":"completed","usage":{"prompt_tokens":12,"completion_tokens":62}}
