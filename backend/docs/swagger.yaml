@@ -1,0 +1,239 @@
+basePath: /
+definitions:
+  ping.HealthResponse:
+    properties:
+      detail:
+        type: string
+      health:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  ping.Model:
+    properties:
+      name:
+        type: string
+    type: object
+  ping.ModelsResponse:
+    properties:
+      detail:
+        type: string
+      models:
+        items:
+          $ref: '#/definitions/ping.Model'
+        type: array
+      status_code:
+        type: integer
+    type: object
+  request.CreateRequest:
+    properties:
+      messages:
+        items:
+          $ref: '#/definitions/request.Message'
+        minItems: 1
+        type: array
+      model:
+        type: string
+      stream:
+        type: boolean
+    required:
+    - messages
+    - model
+    type: object
+  request.CreateResponse:
+    properties:
+      created_at:
+        type: string
+      detail:
+        type: string
+      request_id:
+        type: string
+      status:
+        type: string
+      status_code:
+        type: integer
+      stream:
+        type: boolean
+    type: object
+  request.GetResultResponse:
+    properties:
+      detail:
+        type: string
+      request_id:
+        type: string
+      result:
+        items:
+          $ref: '#/definitions/request.Result'
+        type: array
+      status:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  request.GetStatusResponse:
+    properties:
+      detail:
+        type: string
+      request_id:
+        type: string
+      status:
+        type: string
+      status_code:
+        type: integer
+    type: object
+  request.Message:
+    properties:
+      content:
+        type: string
+    required:
+    - content
+    type: object
+  request.Result:
+    properties:
+      content:
+        type: string
+      role:
+        type: string
+    type: object
+  response.Response:
+    properties:
+      detail:
+        type: string
+      status_code:
+        type: integer
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API for local ai runners
+  title: Local AI API
+  version: "1.0"
+paths:
+  /health:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ping.HealthResponse'
+      summary: Health check
+      tags:
+      - Health
+  /v1/chat/{request_id}/result:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: path
+        in: path
+        name: request_id
+        required: true
+        type: string
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/request.GetResultResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get Result of AI Request
+      tags:
+      - request
+  /v1/chat/{request_id}/status:
+    get:
+      consumes:
+      - application/json
+      parameters:
+      - description: path
+        in: path
+        name: request_id
+        required: true
+        type: string
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/request.GetStatusResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Get status of AI Request
+      tags:
+      - request
+  /v1/chat/completions/:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Body
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/request.CreateRequest'
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/request.CreateResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/response.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/response.Response'
+      summary: Create AI Request
+      tags:
+      - request
+  /v1/models:
+    get:
+      parameters:
+      - description: Authorization token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/ping.ModelsResponse'
+      summary: Get Result of AI Request
+      tags:
+      - request
+      - request
+swagger: "2.0"
