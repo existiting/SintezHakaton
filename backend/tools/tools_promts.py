@@ -355,5 +355,67 @@ TOOLS = [
                 "required": ["id", "operation"]
             }
         }
+    }, 
+    {
+        "type": "function",
+        "function": {
+            "name": "analyze_molecule",
+            "description": (
+                "Local RDKit molecule analyzer. Input = SMILES string "
+                "(molecule as text, e.g. aspirin 'CC(=O)Oc1ccccc1C(=O)O'). "
+                "No network. Returns a dict; unparseable input -> error dict.\n"
+                "CANNOT resolve names: 'aspirin' is NOT a SMILES. For a named compound: "
+                "get_pubchem(compound, name, 'aspirin', 'cids') -> "
+                "get_pubchem(compound, cid, '2244', 'property/SMILES') -> analyze_molecule.\n"
+                "Operations and response shapes:\n"
+                "- 'descriptors' -> formula, molecular_weight (g/mol), exact_mass, logp (Crippen), "
+                "tpsa (A^2), h_bond_donors, h_bond_acceptors, rotatable_bonds, ring_count, "
+                "aromatic_rings, heavy_atoms, fraction_csp3, formal_charge\n"
+                "- 'druglikeness' -> qed (0-1; >0.5 = promising), lipinski_violations "
+                "(0-1 = oral-drug-like), lipinski booleans (MW<=500, LogP<=5, HBD<=5, HBA<=10), "
+                "veber_pass (TPSA<=140 and RotB<=10)\n"
+                "- 'identifiers' -> canonical_smiles, inchi, inchikey (for dedup / DB lookup)\n"
+                "- 'match' -> {match: bool, matches: int}; requires 'pattern' (SMARTS)\n"
+                "Interpretation: logp<0 hydrophilic, >5 very lipophilic; TPSA>140 = poor oral "
+                "absorption, <90 = possible blood-brain barrier penetration; fraction_csp3: "
+                "0 = flat aromatic, 1 = fully saturated.\n"
+                "SMILES containing '.' = salt/mixture: descriptors are summed over components; "
+                "split and analyze the largest fragment if the free molecule is meant. "
+                "RDKit logp (Crippen) may differ slightly from PubChem XLogP3 — different models."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "smiles": {
+                        "type": "string",
+                        "description": (
+                            "Molecule structure as SMILES, e.g. 'CCO' (ethanol), "
+                            "'c1ccccc1' (benzene), 'CC(=O)Oc1ccccc1C(=O)O' (aspirin). "
+                            "NOT a name, NOT a CID. Stereo: '@'/'@@', charges: '[NH4+]'."
+                        )
+                    },
+                    "operation": {
+                        "type": "string",
+                        "enum": ["descriptors", "druglikeness", "identifiers", "match"],
+                        "description": (
+                            "'descriptors' = physicochemical properties (default choice); "
+                            "'druglikeness' = QED + Lipinski rule of five + Veber; "
+                            "'identifiers' = canonical SMILES / InChI / InChIKey; "
+                            "'match' = substructure check, needs 'pattern'."
+                        )
+                    },
+                    "pattern": {
+                        "type": "string",
+                        "description": (
+                            "SMARTS substructure pattern, ONLY for operation='match'. "
+                            "Examples: 'c1ccccc1' benzene ring, 'C(=O)O' carboxyl, "
+                            "'C(=O)N' amide, '[OH]' hydroxyl, '[NX3;H2]' primary amine. "
+                            "Leave empty otherwise."
+                        )
+                    }
+                },
+                "required": ["smiles", "operation"]
+            }
+        }
     }
 ]
