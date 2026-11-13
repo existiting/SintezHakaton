@@ -1,9 +1,9 @@
 env: "local" #local, prod
 http_server:
-  address: "localhost:8080"
+  address: "localhost:8085"
   timeout: 4s
   iddle_timeout: 60s
-  swagger_url: "http://localhost:8080/swagger/doc.json"
+  swagger_url: "http://localhost:8085/swagger/doc.json"
 runner:
   python_bin_path: "./python/.venv/bin/python3"
   python_script_path: "./python/run.py"

@@ -1,54 +1,53 @@
-#!/usr/bin/env python3
-"""
-AI Token Stream Emulator
-Эмулирует загрузку ИИ и потоковую генерацию токенов.
-"""
+import argparse
 
-import random
-import sys
-import time
-
-# --- Настройки ---
-LOAD_TIME = 1.0  # Время "загрузки" ИИ (секунды)
-TOKEN_DELAY_MIN = 0.50  # Минимальная задержка между токенами
-TOKEN_DELAY_MAX = 1  # Максимальная задержка между токенами
-
-SAMPLE_TEXT = (
-    "Привет! Я языковая модель, работающая в потоковом режиме. "
-    "Каждое слово появляется постепенно, имитируя реальную генерацию токенов. "
-    "Такой подход позволяет пользователю видеть ответ в режиме реального времени, "
-    "не дожидаясь полной обработки запроса."
-)
+from agents import answer as answer_agent
+from agents import chem as chem_agent
+from agents import verify as verify_agent
+from agents.qwen_input import call_qwen_input
 
 
-def tokenize(text: str) -> list[str]:
-    """Разбивает текст на псевдо-токены (слова + пробелы)."""
-    tokens = []
-    for word in text.split(" "):
-        tokens.append(word)
-        tokens.append(" ")
-    return tokens[:-1]
+def get_args():
+    parser = argparse.ArgumentParser(description="Text generation")
+
+    parser.add_argument("--promt", required=True, help="Promt for generation")
+
+    return parser.parse_args()
 
 
-def stream_tokens(tokens: list[str]) -> None:
-    """Выводит токены с псевдослучайной задержкой."""
-    for token in tokens:
-        sys.stdout.write(token)
-        sys.stdout.flush()
-        sys.stdout.write("\n")
-        time.sleep(random.uniform(TOKEN_DELAY_MIN, TOKEN_DELAY_MAX))
+def run(request: str):
+    context = call_qwen_input(request)
 
+    if context is None:
+        print("[ERROR] Task is empty")
 
-def main() -> None:
-    print("__READY__", flush=True)
-    time.sleep(0.1)
+        return 1
 
-    tokens = tokenize(SAMPLE_TEXT)
-    stream_tokens(tokens)
-    print()
+    print("----- Task ----")
+    print(context)
 
-    print("__DONE__")
+    chem_reponse = chem_agent.call(request=request, context=context)
+
+    print("---- CHEM -----")
+    print(chem_reponse)
+
+    if chem_reponse is None:
+        print("[ERROR] Chem answer is empty")
+
+        return 1
+
+    verify = verify_agent.call(request, context, chem_reponse)
+    print("---- VERIFY ----")
+    print(verify)
+
+    if verify is None:
+        print("[ERROR] Verify is empty")
+
+        return 1
+
+    answer_agent.call(request, context, chem_reponse, verify)
 
 
 if __name__ == "__main__":
-    main()
+    args = get_args()
+
+    run(args.promt)

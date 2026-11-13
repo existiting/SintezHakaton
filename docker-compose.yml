@@ -12,7 +12,7 @@ services:
     volumes:
       - ./postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "5435:5432"
     networks:
       - local-ai-network
     healthcheck:
@@ -30,7 +30,7 @@ services:
         - REDIS_USER=${REDIS_USER}
         - REDIS_USER_PASSWORD=${REDIS_USER_PASSWORD}
       ports:
-        - "6379:6379"
+        - "6375:6379"
       networks:
         - local-ai-network
       volumes:
@@ -52,8 +52,7 @@ services:
           echo "appendfsync everysec" >> /usr/local/etc/redis/redis.conf &&
           echo "user default on nopass ~* +@all" > /usr/local/etc/redis/users.acl &&
           echo "user $REDIS_USER on >$REDIS_USER_PASSWORD ~* +@all" >> /usr/local/etc/redis/users.acl &&
-          redis-server /usr/local/etc/redis/redis.conf --aclfile /usr/local/etc/redis/users.acl
-        '
+          redis-server /usr/local/etc/redis/redis.conf --aclfile /usr/local/etc/redis/users.acl'
       healthcheck:
         test: ["CMD", "redis-cli", "-a", "$REDIS_PASSWORD", "ping"]
         interval: 30s
@@ -76,8 +75,8 @@ services:
       volumes:
         - ./rabbitmq_data:/var/lib/rabbitmq
       ports:
-        - 15672:15672
-        - 5672:5672
+        - "15675:15672"
+        - "5674:5672"
       healthcheck:
         test:
           [

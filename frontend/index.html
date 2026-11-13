@@ -154,7 +154,7 @@
         </div>
       </div>
       <div class="row between">
-        <label class="toggle"><input type="checkbox" id="stream" checked> Стриминг (WS)</label>
+        <label class="toggle"><input type="checkbox" id="stream" checked> Стриминг (поток)</label>
         <label class="toggle"><input type="checkbox" id="demo"> Демо</label>
       </div>
       <div class="conn" id="conn"></div>
@@ -202,15 +202,19 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ================= API-клиент ================= */
-// Нормализация статусов: в спецификации встречается "pedding"
-const normStatus = s => (s === "pedding" ? "pending" : (s || "pending"));
+// Нормализация статусов: в спецификации/реализациях встречаются разные варианты.
+const normStatus = s => {
+  const v = String(s || "pending").toLowerCase();
+  if (v === "pedding" || v === "queued" || v === "waiting") return "pending";
+  if (v === "processing") return "running";
+  if (v === "done" || v === "complete" || v === "success") return "completed";
+  if (v === "error" || v === "cancelled" || v === "canceled") return "failed";
+  return v;
+};
 
 function apiUrl(path){
   const base = (settings.baseUrl || location.origin).replace(/\/+$/, "");
   return base + path;
-}
-function wsUrl(path){
-  return apiUrl(path).replace(/^http/, "ws");
 }
 function headers(){
   const h = { "Content-Type":"application/json" };
@@ -252,33 +256,61 @@ const realApi = {
   },
   status(id){ return http("GET", `/v1/chat/${id}/status`); },
   result(id){ return http("GET", `/v1/chat/${id}/result`); },
-  // WS /v1/chat/{id}/ws — события start / token / completed / error
+  // GET /v1/chat/{id}/ws — блокирующий поток JSON-событий start / token / completed / error.
+  // Несмотря на имя endpoint-а, сервер не делает WebSocket upgrade.
   stream(id, h){
-    return new Promise((resolve, reject) => {
-      let ws, done = false, opened = false;
-      const buf = new Map(); let next = 1; // упорядочивание по sequence
-      try { ws = new WebSocket(wsUrl(`/v1/chat/${id}/ws`)); } catch(e){ return reject(e); }
-      const finish = (fn, v) => { if (done) return; done = true; try{ ws.close(); }catch(e){} fn(v); };
-      h.setCancel(() => finish(reject, new Error("__cancel__")));
-      ws.onopen = () => { opened = true; };
-      ws.onmessage = ev => {
-        let m; try { m = JSON.parse(ev.data); } catch(e){ return; }
+    const controller = new AbortController();
+    let cancelled = false;
+    h.setCancel(() => { cancelled = true; controller.abort(); });
+    return (async () => {
+      const res = await fetch(apiUrl(`/v1/chat/${id}/ws`), {
+        method: "GET", headers: headers(), signal: controller.signal
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.body) throw new Error("Поток ответа недоступен");
+
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      const buf = new Map(); let next = 1; let line = "";
+      const handle = m => {
         if (m.event === "start") h.onStart?.();
-        else if (m.event === "token"){
-          if (typeof m.sequence !== "number"){ h.onToken(m.data || ""); return; }
+        else if (m.event === "token") {
+          if (typeof m.sequence !== "number") { h.onToken(m.data || ""); return; }
           buf.set(m.sequence, m.data || "");
-          if (next > m.sequence) return;
-          while (buf.has(next)){ h.onToken(buf.get(next)); buf.delete(next); next++; }
-        }
-        else if (m.event === "completed"){
-          // выгружаем всё, что осталось в буфере
+          while (buf.has(next)) { h.onToken(buf.get(next)); buf.delete(next); next++; }
+        } else if (m.event === "error") {
+          throw new Error(`${m.error?.code || "ERROR"}: ${m.error?.message || "Ошибка"}`);
+        } else if (m.event === "completed") {
           [...buf.keys()].sort((a,b)=>a-b).forEach(k => h.onToken(buf.get(k)));
-          finish(resolve, { usage: m.usage });
+          m.__completed = true;
         }
-        else if (m.event === "error") finish(reject, new Error(`${m.error?.code || "ERROR"}: ${m.error?.message || "Ошибка"}`));
+        return m;
       };
-      ws.onerror = () => finish(reject, new Error(opened ? "Ошибка WebSocket-соединения" : "__ws_unavailable__"));
-      ws.onclose = () => finish(reject, new Error(opened ? "Соединение закрыто до завершения" : "__ws_unavailable__"));
+      const consume = raw => {
+        const text = raw.replace(/^data:\s*/, "").trim();
+        if (!text) return null;
+        return handle(JSON.parse(text));
+      };
+      while (!cancelled) {
+        const { value, done } = await reader.read();
+        line += decoder.decode(value || new Uint8Array(), { stream: !done });
+        const lines = line.split(/\r?\n/); line = lines.pop() || "";
+        for (const raw of lines) {
+          const m = consume(raw);
+          if (!m) continue;
+          if (m.__completed) { await reader.cancel(); return { usage: m.usage }; }
+        }
+        if (done) {
+          const m = consume(line);
+          if (m?.__completed) return { usage: m.usage };
+          break;
+        }
+      }
+      if (cancelled) throw new Error("__cancel__");
+      throw new Error("Поток завершился до события completed");
+    })().catch(e => {
+      if (e.name === "AbortError" || cancelled) throw new Error("__cancel__");
+      throw e;
     });
   }
 };
@@ -287,7 +319,7 @@ const realApi = {
 const demoTasks = new Map();
 const demoAnswers = [
   "Привет! Это **демо-режим**: ответы генерируются прямо в браузере, без обращения к API.\n\nЧтобы подключить настоящий бэкенд, выключите «Демо» и укажите адрес API в настройках слева.",
-  "Вот как фронтенд работает с вашим API:\n\n1. `POST /v1/chat/completions` — создаёт задачу и получает `request_id`\n2. Если стриминг включён — открывает `WS /v1/chat/{id}/ws` и выводит токены по мере прихода\n3. Если выключен — опрашивает `/status` и забирает `/result`\n\n```json\n{ \"event\": \"token\", \"sequence\": 1, \"data\": \"Hello\" }\n```",
+  "Вот как фронтенд работает с вашим API:\n\n1. `POST /v1/chat/completions` — создаёт задачу и получает `request_id`\n2. Если стриминг включён — читает блокирующий `GET /v1/chat/{id}/ws` и выводит токены по мере прихода\n3. Если выключен — опрашивает `/status` и забирает `/result`\n\n```json\n{ \"event\": \"token\", \"sequence\": 1, \"data\": \"Hello\" }\n```",
   "Анализ молекулы (пример):\n\n- **Формула:** C₉H₈O₄ (аспирин)\n- **Молекулярная масса:** 180.16 г/моль\n- **logP:** ≈ 1.19\n- Соответствует правилу Липински: 1 донор и 4 акцептора H-связей.\n\nЭто демонстрационный текст — реальный ответ придёт от вашей модели."
 ];
 let demoIdx = 0;
@@ -490,28 +522,33 @@ async function send(text){
       if (!a.requestId) throw new Error("Сервер не вернул request_id");
 
       let streamed = false;
-      // В браузере нельзя передать Authorization header в WebSocket handshake.
-      // При токене используем HTTP polling, где заголовок поддерживается.
-      if (settings.stream && !settings.apiKey){
-        try {
+      if (settings.stream){
+        // Сервер открывает поток только после перехода задачи в processing/running.
+        while (a.status === "pending"){
+          if (cancelled) throw new Error("__cancel__");
+          const s = await A.status(a.requestId);
+          a.status = normStatus(s.status); updateLast();
+          if (a.status === "completed" || a.status === "failed") break;
+          await sleep(1000);
+        }
+        if (a.status === "running"){
           const r = await A.stream(a.requestId, {
             setCancel: f => innerCancel = f,
             onStart: () => { a.status = "running"; updateLast(); },
             onToken: t => { a.status = "running"; a.content += t; updateLast(); }
           });
           a.usage = r.usage; a.status = "completed"; streamed = true;
-        } catch(e){
-          if (e.message !== "__ws_unavailable__") throw e;
-          // WebSocket недоступен — переключаемся на опрос статуса
         }
       }
       if (!streamed){
-        while (true){
-          if (cancelled) throw new Error("__cancel__");
-          const s = await A.status(a.requestId);
-          a.status = normStatus(s.status); updateLast();
-          if (a.status === "completed" || a.status === "failed") break;
-          await sleep(1000);
+        if (a.status !== "completed" && a.status !== "failed"){
+          while (true){
+            if (cancelled) throw new Error("__cancel__");
+            const s = await A.status(a.requestId);
+            a.status = normStatus(s.status); updateLast();
+            if (a.status === "completed" || a.status === "failed") break;
+            await sleep(1000);
+          }
         }
         const r = await A.result(a.requestId);
         if (normStatus(r.status) === "failed" || a.status === "failed")
