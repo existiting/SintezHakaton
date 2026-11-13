@@ -9,7 +9,7 @@ from agents.qwen_input import call_qwen_input
 def get_args():
     parser = argparse.ArgumentParser(description="Text generation")
 
-    parser.add_argument("--promt", required=True, help="Promt for generation")
+    parser.add_argument("--prompt", required=True, help="Promt for generation")
 
     return parser.parse_args()
 
@@ -50,4 +50,4 @@ def run(request: str):
 if __name__ == "__main__":
     args = get_args()
 
-    run(args.promt)
+    run(args.prompt)

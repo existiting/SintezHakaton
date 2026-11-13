@@ -13,8 +13,8 @@ def call(
         {"role": "system", "content": f"context: {context}"},
     ]
 
-    response = server.client1.chat.completions.create(
-        model=config.CHEMLLM_MODEL,
+    response = server.client2.chat.completions.create(
+        model=config.QWEN_MODEL,
         messages=messages,
         reasoning_effort=None,
         extra_body={

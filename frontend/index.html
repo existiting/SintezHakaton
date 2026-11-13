@@ -126,7 +126,6 @@
       </svg>
       <span class="name">ЭликсИИр</span>
     </div>
-    <div class="tagline formula">C₆H₆ · H₂O · ИИ</div>
     <button class="new" id="newChat">＋ Новая реакция</button>
     <div class="chats" id="chatList"></div>
     <svg class="side-mol" width="150" height="70" viewBox="0 0 150 70" aria-hidden="true">
@@ -211,6 +210,7 @@ const normStatus = s => {
   if (v === "error" || v === "cancelled" || v === "canceled") return "failed";
   return v;
 };
+const isProcessing = s => ["processing", "running"].includes(String(s || "").toLowerCase());
 
 function apiUrl(path){
   const base = (settings.baseUrl || location.origin).replace(/\/+$/, "");
@@ -523,15 +523,19 @@ async function send(text){
 
       let streamed = false;
       if (settings.stream){
-        // Сервер открывает поток только после перехода задачи в processing/running.
-        while (a.status === "pending"){
+        // The /ws endpoint is a streaming HTTP GET (not a WebSocket upgrade).
+        // Open it as soon as the API reports processing, including when that
+        // status was returned by POST /completions itself.
+        let streamReady = isProcessing(task.status);
+        while (!streamReady && a.status === "pending"){
           if (cancelled) throw new Error("__cancel__");
           const s = await A.status(a.requestId);
           a.status = normStatus(s.status); updateLast();
+          streamReady = isProcessing(s.status);
           if (a.status === "completed" || a.status === "failed") break;
           await sleep(1000);
         }
-        if (a.status === "running"){
+        if (streamReady){
           const r = await A.stream(a.requestId, {
             setCancel: f => innerCancel = f,
             onStart: () => { a.status = "running"; updateLast(); },
